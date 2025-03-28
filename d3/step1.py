@@ -38,19 +38,21 @@ import numpy as np
 
 #step2
 class Function:
-    def __call__(self, input):
-        x = input.data
-        y = self.forward(x)
-        output = Variable(as_array(y))
-        output.set_creator(self)
-        self.input = input
-        self.output = output
-        return output
+    def __call__(self, inputs):
+            xs = [x.data for x in inputs]
+            ys = self.forward(xs)
+            outputs = [Variable(as_array(y)) for y in ys]
+            
+            for output in outputs:
+                output.set_creator(self)
+            self.inputs = inputs
+            self.outputs = outputs
+            return outputs
     
-    def forward(self, x):
+    def forward(self, xs):
         raise NotImplementedError()
     
-    def backward(self, gy):
+    def backward(self, gys):
         raise NotImplementedError()
     
 class Square(Function):
@@ -101,11 +103,11 @@ def numerical_diff(f, x, eps=1e-4):
 # dy = numerical_diff(f, x)
 # print(dy)
 
-def f(x):
-    A = Square()
-    B = Exp()
-    C = Square()
-    return C(B(A(x)))
+# def f(x):
+#     A = Square()
+#     B = Exp()
+#     C = Square()
+#     return C(B(A(x)))
 
 # x = Variable(np.array(0.5))
 # dy = numerical_diff(f, x)
@@ -155,17 +157,17 @@ def exp(x):
 # # y.grad = np.array(1.0)
 # y.backward()
 # print(x.grad)
-x = np.array(1.0)
-y = x **2
-print(type(x), x.ndim)
-print(type(y))
+# x = np.array(1.0)
+# y = x **2
+# print(type(x), x.ndim)
+# print(type(y))
 
 def as_array(x):
     if np.isscalar(x):
         return np.array(x)
     return x
 
-print(np.isscalar(np.float64(1.0)))
+#print(np.isscalar(np.float64(1.0)))
 
 
 #step10
@@ -199,4 +201,16 @@ class SquareTest(unittest.TestCase):
         flg = np.allclose(x.grad, num_grad)
         self.assertTrue(flg)
     
-unittest.main()
+#unittest.main()
+
+class Add(Function):
+    def forward(self, xs):
+        x0, x1 = xs
+        y = x0 + x1
+        return (y,)
+
+xs = [Variable(np.array(2)), Variable(np.array(3))]
+f = Add()
+ys = f(xs)
+y = ys[0]
+print(y.data)
