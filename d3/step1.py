@@ -19,11 +19,28 @@ class Variable:
         funcs = [self.creator]
         while funcs:
             f = funcs.pop()
-            x, y = f.input, f.output
-            x.grad = f.backward(y.grad)
+            gys = [output.grad for output in f.outputs]
+            gxs = f.backward(*gys)
+            if not isinstance(gxs, tuple):
+                gxs = (gxs,)
                 
-            if x.creator is not None:
-                funcs.append(x.creator)
+            for x, gx in zip(f.inputs, gxs):
+                if x.grad is None:
+                    x.grad = gx
+                else:
+                    x.grad = x.grad + gx
+                
+                if x.creator is not None:
+                    funcs.append(x.creator)
+                    
+            # x, y = f.input, f.output
+            # x.grad = f.backward(y.grad)
+                
+            # if x.creator is not None:
+            #     funcs.append(x.creator)
+    
+    def cleargrad(self):
+        self.grad = None
             
         
 import numpy as np
@@ -38,16 +55,19 @@ import numpy as np
 
 #step2
 class Function:
-    def __call__(self, inputs):
+    def __call__(self, *inputs):
             xs = [x.data for x in inputs]
-            ys = self.forward(xs)
+            
+            ys = self.forward(*xs)
+            if not isinstance(ys, tuple):
+                ys = (ys,)
             outputs = [Variable(as_array(y)) for y in ys]
             
             for output in outputs:
                 output.set_creator(self)
             self.inputs = inputs
             self.outputs = outputs
-            return outputs
+            return outputs if len(outputs) > 1 else outputs[0]
     
     def forward(self, xs):
         raise NotImplementedError()
@@ -203,14 +223,55 @@ class SquareTest(unittest.TestCase):
     
 #unittest.main()
 
+#step11
 class Add(Function):
-    def forward(self, xs):
-        x0, x1 = xs
+    def forward(self, x0, x1):
         y = x0 + x1
-        return (y,)
+        return y
+    def backward(self, gy):
+        return gy, gy
 
-xs = [Variable(np.array(2)), Variable(np.array(3))]
-f = Add()
-ys = f(xs)
-y = ys[0]
-print(y.data)
+# xs = [Variable(np.array(2)), Variable(np.array(3))]
+# f = Add()
+# ys = f(xs)
+# y = ys[0]
+# print(y.data)
+
+#step12
+def add(x0, x1):
+    return Add()(x0, x1)
+
+# x0 = Variable(np.array(2))
+# x1 = Variable(np.array(3))
+# y = add(x0, x1)
+# print(y.data)
+
+
+#step13
+class Square(Function):
+    def forward(self, x):
+        return x**2
+    def backward(self, gy):
+        x = self.inputs[0].data
+        gx = 2*x*gy
+        return gx
+
+# x = Variable(np.array(2.0))
+# y = Variable(np.array(3.0))
+# z = add(square(x), square(y))
+# z.backward()
+# print(z.data)
+# print(x.grad)
+# print(y.grad)
+
+
+#step14
+x = Variable(np.array(3.0))
+y = add(x, x)
+y.backward()
+print(x.grad)
+
+x.cleargrad()
+y = add(add(x, x), x)
+y.backward()
+print(x.grad)
