@@ -2,6 +2,11 @@ import numpy as np
 import weakref
 import contextlib
 
+def as_variable(obj):
+    if isinstance(obj, Variable):
+        return obj
+    return Variable(obj)
+
 #step1
 class Variable:
     def __init__(self, data, name=None):
@@ -105,23 +110,28 @@ class Variable:
 
 class Config:
     enable_backprop = True
+    
+
+
 #step2
 class Function:
     def __call__(self, *inputs):
-            xs = [x.data for x in inputs]
-            ys = self.forward(*xs)
-            if not isinstance(ys, tuple):
-                ys = (ys,)
-            outputs = [Variable(as_array(y)) for y in ys]
+        inputs = [as_variable(x) for x in inputs]
+        
+        xs = [x.data for x in inputs]
+        ys = self.forward(*xs)
+        if not isinstance(ys, tuple):
+            ys = (ys,)
+        outputs = [Variable(as_array(y)) for y in ys]
             
-            if Config.enable_backprop:
-                self.generation = max([x.generation for x in inputs])
-                for output in outputs:
-                    output.set_creator(self)
-                self.inputs = inputs
-                self.outputs = [weakref.ref(output) for output in outputs]
+        if Config.enable_backprop:
+            self.generation = max([x.generation for x in inputs])
+            for output in outputs:
+                output.set_creator(self)
+            self.inputs = inputs
+            self.outputs = [weakref.ref(output) for output in outputs]
                 
-            return outputs if len(outputs) > 1 else outputs[0]
+        return outputs if len(outputs) > 1 else outputs[0]
     
     def forward(self, xs):
         raise NotImplementedError()
@@ -392,13 +402,23 @@ def mul(x0, x1):
     return Mul()(x0, x1)
 
 
-Variable.__mul__ = mul
-Variable.__add__ = add
-a = Variable(np.array(3.0))
-b = Variable(np.array(2.0))
-c = Variable(np.array(1.0))
-y = a * b + c
-y.backward()
+# Variable.__mul__ = mul
+# Variable.__add__ = add
+# a = Variable(np.array(3.0))
+# b = Variable(np.array(2.0))
+# c = Variable(np.array(1.0))
+# y = a * b + c
+# y.backward()
+# print(y)
+# print(a.grad)
+# print(b.grad)
+
+#step21
+# def as_variable(obj):
+#     if isinstance(obj, Variable):
+#         return obj
+#     return Variable(obj)
+
+x = Variable(np.array(2.0))
+y = x + np.array(3.0)
 print(y)
-print(a.grad)
-print(b.grad)
